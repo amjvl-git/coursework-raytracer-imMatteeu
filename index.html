@@ -79,12 +79,12 @@ class Sphere
     // If two solutions exist return the minus solution
     // If no solutions exist return -1
     rayIntersects(ray)  {
-        let oc = ray.origin.minus(this.centre) // Calculating distance from origin to centre
+        let otc = ray.origin.minus(this.centre) // distance of ray origin to centre point
         let a = ray.direction.dot(ray.direction) // Dot form of direction
-        let b = 2.0 * oc.dot(ray.direction)
-        let c = oc.dot(oc) - this.radius * this.radius
+        let b = 2.0 * otc.dot(ray.direction)
+        let c = otc.dot(otc) - this.radius * this.radius
 
-        let discriminant = b * b - 4 * a * c
+        let discriminant = b * b - 4 * a * c // everything under the sqrt
 
         if (discriminant > 0) {
             return (-b - Math.sqrt(discriminant)) / (2 * a)
@@ -108,7 +108,7 @@ class Ray
 
     // Calculate and return the point in space (a Vec3) for this ray for the given value of t
     pointAt(t) {
-        return new Vec3(this.origin + this.direction.scale(t))
+        return new Vec3(ray.origin.add(ray.direction.scale(t)))
     }
 }
 
@@ -175,7 +175,7 @@ function backgroundColour(ray)
 }
 
 
-function isInShadow(point, normal, samples = 10) {
+function Shadow(point, normal, samples = 10) {
     let bias = 0.001; // Offset (Stops Self Shadowing)
     let shadowOrigin = point.add(normal.scale(bias)); // move from surface
 
@@ -202,7 +202,7 @@ function isInShadow(point, normal, samples = 10) {
         }
     }
 
-    // Return the percentage of rays blocked (shadow softness factor)
+    // Return the percentage of rays blocked
     return shadowCount / samples;
 }
 
@@ -218,7 +218,7 @@ function rayColour(ray) {
     let ambientStrength = 0.1;
     let ambient = albedo.scale(ambientStrength);
 
-    let shadowFactor = isInShadow(castResult.position, castResult.normal, 250); // More samples = smoother shadow
+    let shadowFactor = Shadow(castResult.position, castResult.normal, 250); // More samples = smoother shadow
 
     // Diffuse lighting
     let lightDirect = negLightDirection.normalised();
