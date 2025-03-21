@@ -174,18 +174,70 @@ function backgroundColour(ray)
     return white.scale(1 - t).add(blue.scale(t))
 }
 
-// Returns the colour the ray should have as a Vec3 with RGB values in [0,1]
-function rayColour(ray) 
-{
-    let castResult = traceRay(ray)
 
-    if(castResult.t < 0) return backgroundColour(ray)
+function isInShadow(point, normal, samples = 10) {
+    let bias = 0.001; // Offset (Stops Self Shadowing)
+    let shadowOrigin = point.add(normal.scale(bias)); // move from surface
 
-    let albedo = spheres[castResult.sphereIndex].colour
-    let diffuse = Math.max(castResult.normal.dot(negLightDirection), 0)
-    let colour = albedo.scale(diffuse)
-    return colour
+    let shadowCount = 0;
+
+    for (let i = 0; i < samples; i++) {
+        // Create a small, random offset for the light direction (Works as an area light)
+        let offset_Rand = new Vec3(
+            (Math.random() - 0.5) * 0.2, 
+            (Math.random() - 0.5) * 0.2, 
+            (Math.random() - 0.5) * 0.2  
+    );
+
+        let softLightDirect = negLightDirection.add(offset_Rand).normalised();
+        let shadowRay = new Ray(shadowOrigin, softLightDirect);
+
+        for (let j = 0; j < spheres.length; j++) {
+            let t = spheres[j].rayIntersects(shadowRay);
+
+            if (t > bias) {  // If it hits something before reaching the light
+                shadowCount++ // Adds a shadow
+                break
+            }
+        }
+    }
+
+    // Return the percentage of rays blocked (shadow softness factor)
+    return shadowCount / samples;
 }
+
+
+function rayColour(ray) {
+    let castResult = traceRay(ray);
+
+    if (castResult.t < 0) return backgroundColour(ray); // No hit, return sky
+
+    let sphere = spheres[castResult.sphereIndex];
+    let albedo = sphere.colour;
+
+    let ambientStrength = 0.1;
+    let ambient = albedo.scale(ambientStrength);
+
+    let shadowFactor = isInShadow(castResult.position, castResult.normal, 250); // More samples = smoother shadow
+
+    // Diffuse lighting
+    let lightDirect = negLightDirection.normalised();
+    let diffuseStrength = Math.max(castResult.normal.dot(lightDirect), 0) * (1 - shadowFactor);
+    let diffuse = albedo.scale(diffuseStrength);
+
+    // Specular lighting
+    let viewDirect = (camPosition.minus(castResult.position)).normalised();
+    let reflectDirect = lightDirect.minus(castResult.normal.scale(2 * lightDirect.dot(castResult.normal))).normalised();
+    let specStrength = Math.pow(Math.max(viewDirect.dot(reflectDirect), 0), 32) * (1 - shadowFactor);
+    let specular = new Vec3(1, 1, 1).scale(specStrength);
+
+    let colour = ambient.add(diffuse).add(specular);
+
+    return colour;
+}
+
+
+
 
 // Sets a pixel at (x, y) in the canvas with an RGB Vec3
 function setPixel(x, y, colour)
